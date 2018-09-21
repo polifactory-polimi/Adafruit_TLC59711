@@ -19,7 +19,11 @@
 #include <Adafruit_TLC59711.h>
 #include <SPI.h>
 
-Adafruit_TLC59711::Adafruit_TLC59711(uint8_t n, uint8_t c, uint8_t d) {
+//Can work up to 10 MHz
+SPISettings SPI_SETTINGS(10000000, MSBFIRST, SPI_MODE0);
+
+Adafruit_TLC59711::Adafruit_TLC59711(uint8_t n, uint8_t c, uint8_t d) :
+  spidev(NULL) {
   numdrivers = n;
   _clk = c;
   _dat = d;
@@ -29,18 +33,12 @@ Adafruit_TLC59711::Adafruit_TLC59711(uint8_t n, uint8_t c, uint8_t d) {
   pwmbuffer = (uint16_t *)calloc(2, 12*n);
 }
 
-Adafruit_TLC59711::Adafruit_TLC59711(uint8_t n) {
+Adafruit_TLC59711::Adafruit_TLC59711(uint8_t n, SPIClass *spidev) :
+  spidev(spidev) {
   numdrivers = n;
   _clk = -1;
   _dat = -1;
 
-  SPI.setBitOrder(MSBFIRST);
-#ifdef __arm__
-  SPI.setClockDivider(42);
-#else
-  SPI.setClockDivider(SPI_CLOCK_DIV8);
-#endif
-  SPI.setDataMode(SPI_MODE0);
   BCr = BCg = BCb = 0x7F;
 
   pwmbuffer = (uint16_t *)calloc(2, 12*n);
@@ -60,12 +58,14 @@ void  Adafruit_TLC59711::spiwriteMSB(uint32_t d) {
       digitalWrite(_clk, HIGH);
     }
   } else {
-    SPI.transfer(d);
+    spidev->transfer(d);
   }
 }
 
 void Adafruit_TLC59711::write(void) {
   uint32_t command;
+
+  spidev->beginTransaction(SPI_SETTINGS);
 
   // Magic word for write
   command = 0x25;
@@ -98,10 +98,15 @@ void Adafruit_TLC59711::write(void) {
     }
   }
 
-  if (_clk >= 0)
+  if (_clk >= 0) {
     delayMicroseconds(200);
-  else
+  }
+  else {
     delayMicroseconds(2);
+  }
+
+  spidev->endTransaction();
+
   interrupts();
 }
 
@@ -127,7 +132,17 @@ boolean Adafruit_TLC59711::begin() {
     pinMode(_clk, OUTPUT);
     pinMode(_dat, OUTPUT);
   } else {
-    SPI.begin();
+    spidev->begin();
   }
   return true;
+}
+
+void Adafruit_TLC59711::setBrightness(uint8_t rgb) {
+  BCr = BCg = BCb = rgb >> 1;
+}
+
+void Adafruit_TLC59711::setBrightness(uint8_t r, uint8_t g, uint8_t b) {
+  BCr = r >> 1;
+  BCg = g >> 1;
+  BCb = b >> 1;
 }

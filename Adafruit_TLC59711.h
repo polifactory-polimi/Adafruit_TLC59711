@@ -19,12 +19,13 @@
 #define _ADAFRUIT_TLC59711_H
 
 #include <Arduino.h>
+#include <SPI.h>
 
 
 class Adafruit_TLC59711 {
  public:
   Adafruit_TLC59711(uint8_t n, uint8_t c, uint8_t d);
-  Adafruit_TLC59711(uint8_t n);
+  Adafruit_TLC59711(uint8_t n, SPIClass *spidev = &SPI);
 
   boolean begin(void);
 
@@ -33,7 +34,12 @@ class Adafruit_TLC59711 {
   void write(void);
   void spiwriteMSB(uint32_t d);
 
+  void setBrightness(uint8_t rgb);
+  void setBrightness(uint8_t r, uint8_t g, uint8_t b);
+
  private:
+  SPIClass *spidev;
+
   uint16_t *pwmbuffer;
 
   uint8_t BCr, BCg, BCb;
